@@ -1,0 +1,7 @@
+name: Clairvoyant
+version: '1.0-SNAPSHOT'
+main: com.nitg3n.clairvoyant.Clairvoyant
+api-version: '1.21'
+prefix: CV
+authors: [ nitg3n ]
+description: A plugin for detecting X-ray users. Detailed records enable managers to easily apprehend X-ray users themselves.
