@@ -1,7 +1,26 @@
 name: Clairvoyant
-version: '1.0-SNAPSHOT'
+version: '${version}'
 main: com.nitg3n.clairvoyant.Clairvoyant
 api-version: '1.21'
-prefix: CV
-authors: [ nitg3n ]
-description: A plugin for detecting X-ray users. Detailed records enable managers to easily apprehend X-ray users themselves.
+author: nitg3n
+description: A plugin for detecting X-ray users by logging and visualizing their activities.
+
+commands:
+  clairvoyant:
+    description: Main command for the Clairvoyant plugin.
+    permission: clairvoyant.admin
+    aliases: [ cv, xray ]
+
+permissions:
+  clairvoyant.admin:
+    description: Allows usage of all Clairvoyant commands.
+    default: op
+  clairvoyant.stats:
+    description: Allows viewing player stats.
+    default: op
+  clairvoyant.trace:
+    description: Allows tracing player movements.
+    default: op
+  clairvoyant.check:
+    description: Allows checking a player's suspicion level.
+    default: op
