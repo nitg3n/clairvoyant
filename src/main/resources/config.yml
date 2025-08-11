@@ -1,0 +1,104 @@
+# Clairvoyant Configuration File
+# ---------------------------------
+# 이 파일에서 플러그인의 모든 분석 기준과 가중치를 조정할 수 있습니다.
+# 서버 특성에 맞게 값을 변경하여 탐지 정확도를 최적화하세요.
+
+# 각 휴리스틱 분석에 적용될 가중치입니다. 총 합이 1.0이 되도록 조정하는 것을 권장합니다.
+weights:
+  high-value-ore-ratio: 0.15
+  anomalous-mining: 0.10
+  y-level-analysis: 0.15
+  tunneling-pattern: 0.20
+  mining-purity: 0.15
+  path-efficiency: 0.10
+  torch-usage: 0.05
+  time-distance: 0.05
+  initial-discovery: 0.05
+
+# 휴리스틱 분석에 사용될 광물 및 블록 목록입니다.
+ore-lists:
+  high-value:
+    - "DIAMOND_ORE"
+    - "DEEPSLATE_DIAMOND_ORE"
+    - "EMERALD_ORE"
+    - "DEEPSLATE_EMERALD_ORE"
+    - "ANCIENT_DEBRIS"
+  common:
+    COAL: ["COAL_ORE", "DEEPSLATE_COAL_ORE"]
+    IRON: ["IRON_ORE", "DEEPSLATE_IRON_ORE"]
+    GOLD: ["GOLD_ORE", "DEEPSLATE_GOLD_ORE", "NETHER_GOLD_ORE"]
+    COPPER: ["COPPER_ORE", "DEEPSLATE_COPPER_ORE"]
+    LAPIS: ["LAPIS_ORE", "DEEPSLATE_LAPIS_ORE"]
+    REDSTONE: ["REDSTONE_ORE", "DEEPSLATE_REDSTONE_ORE"]
+  stones:
+    - "STONE"
+    - "COBBLESTONE"
+    - "DEEPSLATE"
+    - "COBBLED_DEEPSLATE"
+    - "NETHERRACK"
+    - "DIRT"
+    - "GRANITE"
+    - "DIORITE"
+    - "ANDESITE"
+    - "TUFF"
+  ignorable-interactions:
+    - "CHEST"
+    - "TRAPPED_CHEST"
+    - "SPAWNER"
+    - "BOOKSHELF"
+
+# /cv trace 명령어 시각화 매핑
+# 파괴된 블록(왼쪽)을 어떤 블록(오른쪽)으로 보여줄지 설정합니다.
+# 여기에 없는 블록은 default-marker에 설정된 블록으로 표시됩니다.
+visualization-mapping:
+  default-marker: "OAK_FENCE"
+  ores:
+    DIAMOND_ORE: "DIAMOND_BLOCK"
+    DEEPSLATE_DIAMOND_ORE: "DIAMOND_BLOCK"
+    EMERALD_ORE: "EMERALD_BLOCK"
+    DEEPSLATE_EMERALD_ORE: "EMERALD_BLOCK"
+    ANCIENT_DEBRIS: "NETHERITE_BLOCK"
+    GOLD_ORE: "GOLD_BLOCK"
+    DEEPSLATE_GOLD_ORE: "GOLD_BLOCK"
+    NETHER_GOLD_ORE: "GOLD_BLOCK"
+    IRON_ORE: "IRON_BLOCK"
+    DEEPSLATE_IRON_ORE: "IRON_BLOCK"
+    COAL_ORE: "COAL_BLOCK"
+    DEEPSLATE_COAL_ORE: "COAL_BLOCK"
+    LAPIS_ORE: "LAPIS_BLOCK"
+    DEEPSLATE_LAPIS_ORE: "LAPIS_BLOCK"
+    REDSTONE_ORE: "REDSTONE_BLOCK"
+    DEEPSLATE_REDSTONE_ORE: "REDSTONE_BLOCK"
+    COPPER_ORE: "COPPER_BLOCK"
+    DEEPSLATE_COPPER_ORE: "COPPER_BLOCK"
+
+# 각 휴리스틱의 민감도를 조정하는 설정입니다.
+thresholds:
+  min-blocks-for-analysis:
+    stone: 100
+    total: 500
+  high-value-ratio: 0.02
+  common-ore-ratios:
+    COAL: 0.10
+    IRON: 0.05
+    GOLD: 0.03
+    COPPER: 0.06
+    LAPIS: 0.02
+    REDSTONE: 0.04
+  tunnel-variance: 2.0
+  suspicious-speed: 5.0
+  suspicious-y-levels:
+    - "y > -65 && y < -50"
+    - "y > 8 && y < 22"
+  y-level-concentration-ratio: 0.40
+  torch-usage:
+    check-below-y: 40
+    min-blocks-for-check: 500
+    suspicious-ratio: 200
+  mining-purity:
+    check-window-before-ore: 50
+    suspicious-purity-ratio: 0.95
+  initial-discovery:
+    suspicious-time-seconds: 300
+  path-efficiency:
+    suspicious-efficiency-ratio: 1.5

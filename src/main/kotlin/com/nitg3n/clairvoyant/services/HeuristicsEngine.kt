@@ -1,42 +1,309 @@
 package com.nitg3n.clairvoyant.services
 
-import org.bukkit.entity.Player
-import java.util.UUID
+import com.nitg3n.clairvoyant.models.ActionData
+import com.nitg3n.clairvoyant.models.ActionType
+import org.bukkit.Bukkit
+import java.util.*
+import kotlin.math.pow
+import kotlin.math.sqrt
 
-object HeuristicsEngine {
-    data class SuspicionReport(
-        val playerUuid: UUID,
-        val finalScore: Double,
-        val oreRatioScore: Double,
-        val tunnelPatternScore: Double,
-        val timeDistanceScore: Double,
-        val summary: String
+/**
+ * HeuristicsEngine의 분석 결과를 담는 데이터 클래스.
+ */
+data class SuspicionReport(
+    val playerName: String,
+    val playerUUID: UUID,
+    val overallScore: Double,
+    val reportDetails: List<String>
+)
+
+/**
+ * 플레이어 행동 데이터를 분석하여 X-ray 사용 의심도를 평가하는 휴리스틱 엔진.
+ * (오류 수정: 연산자 오류 및 로직 수정)
+ */
+class HeuristicsEngine(
+    private val databaseManager: DatabaseManager,
+    private val config: ConfigManager
+) {
+
+    private data class AnalysisContext(
+        val allActions: List<ActionData>,
+        val breakActions: List<ActionData>,
+        val valuableFinds: List<ActionData>,
+        val highValueOres: Set<String>
     )
 
-    suspend fun analyzePlayer(player: Player): SuspicionReport {
-        val uuid = player.uniqueId
-        val oreRatioScore = calculateOreToStoneRatio(uuid)
-        val tunnelPatternScore = analyzeTunnelingPatterns(uuid)
-        val timeDistanceScore = analyzeTimeAndDistance(uuid)
-        val finalScore = (oreRatioScore * 0.2) + (tunnelPatternScore * 0.6) + (timeDistanceScore * 0.2)
-        val summary = "Final Score: %.2f (OreRatio: %.2f, TunnelPattern: %.2f, TimeDistance: %.2f)".format(
-            finalScore, oreRatioScore, tunnelPatternScore, timeDistanceScore
+    fun analyzePlayer(playerUUID: UUID): SuspicionReport {
+        val allActions = databaseManager.getPlayerActions(playerUUID)
+        val playerName = Bukkit.getOfflinePlayer(playerUUID).name ?: "Unknown"
+
+        if (allActions.size < config.getMinTotalForAnalysis()) {
+            return SuspicionReport(playerName, playerUUID, 0.0, listOf("Not enough data available for this player (<${config.getMinTotalForAnalysis()} actions)."))
+        }
+
+        val context = AnalysisContext(
+            allActions = allActions,
+            breakActions = allActions.filter { it.actionType == ActionType.BLOCK_BREAK },
+            highValueOres = config.getHighValueOres(),
+            valuableFinds = allActions.filter { it.actionType == ActionType.BLOCK_BREAK && it.material in config.getHighValueOres() }
         )
-        return SuspicionReport(uuid, finalScore, oreRatioScore, tunnelPatternScore, timeDistanceScore, summary)
+
+        val heuristics: List<(AnalysisContext) -> Triple<String, Double, String>> = listOf(
+            ::calculateOreToStoneRatio,
+            ::analyzeAnomalousMining,
+            ::analyzeYLevelDistribution,
+            ::analyzeTunnelingPatterns,
+            ::analyzeMiningPurity,
+            ::analyzePathEfficiency,
+            ::analyzeTorchUsage,
+            ::analyzeTimeAndDistance,
+            ::analyzeInitialDiscoveryTime
+        )
+
+        val reports = heuristics.map { it(context) }
+
+        // 오류 수정을 위해 associate 대신 forEach와 mutableMap을 사용하는 명시적인 방식으로 변경
+        val weightedScores = mutableMapOf<String, Double>()
+        reports.forEach { (key, score, _) ->
+            weightedScores[key] = score * config.getWeight(key)
+        }
+
+        val overallScore = weightedScores.values.sum()
+
+        val reportDetails = reports.map { it.third }
+
+        return SuspicionReport(playerName, playerUUID, overallScore.coerceIn(0.0, 100.0), reportDetails)
     }
 
-    private suspend fun calculateOreToStoneRatio(playerUuid: UUID): Double {
-        // TODO: Implement heuristic logic
-        return 0.0
+    private fun calculateOreToStoneRatio(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "high-value-ore-ratio"
+        val commonStones = config.getStoneTypes()
+        val oresMined = ctx.valuableFinds.size.toDouble()
+        val stonesMined = ctx.breakActions.count { it.material in commonStones }.toDouble()
+
+        if (stonesMined < config.getMinStoneForAnalysis()) {
+            return Triple(key, 0.0, "[High-Value Ore Ratio] Not enough stone blocks mined.")
+        }
+
+        val ratio = if (stonesMined > 0) oresMined / stonesMined else 0.0
+        val threshold = config.getHighValueRatioThreshold()
+        val score = if (ratio > threshold) ((ratio - threshold) * 5000).coerceIn(0.0, 100.0) else 0.0
+
+        val report = "[High-Value Ore Ratio | Score: %.1f] Mined %d high-value ores vs %d common blocks. (Ratio: %.4f)".format(score, oresMined.toInt(), stonesMined.toInt(), ratio)
+        return Triple(key, score, report)
     }
 
-    private suspend fun analyzeTunnelingPatterns(playerUuid: UUID): Double {
-        // TODO: Implement heuristic logic
-        return 0.0
+    private fun analyzeAnomalousMining(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "anomalous-mining"
+        val commonStonesMined = ctx.breakActions.count { it.material in config.getStoneTypes() }.toDouble()
+        if (commonStonesMined < config.getMinStoneForAnalysis()) {
+            return Triple(key, 0.0, "[Anomalous Mining] Not enough stone blocks mined.")
+        }
+
+        var maxScore = 0.0
+        var reportDetails = ""
+
+        for ((oreName, oreMaterials) in config.getCommonOres()) {
+            val oreMined = ctx.breakActions.count { it.material in oreMaterials }.toDouble()
+            val threshold = config.getCommonOreRatioThreshold(oreName)
+            val ratio = if (commonStonesMined > 0) oreMined / commonStonesMined else 0.0
+
+            val score = if (ratio > threshold) ((ratio - threshold) * 1000).coerceIn(0.0, 100.0) else 0.0
+
+            if (score > maxScore) {
+                maxScore = score
+                reportDetails = "(Target: $oreName, Ratio: %.4f)".format(ratio)
+            }
+        }
+
+        val report = "[Anomalous Mining | Score: %.1f] Checked common ore ratios. %s".format(maxScore, reportDetails)
+        return Triple(key, maxScore, report)
     }
 
-    private suspend fun analyzeTimeAndDistance(playerUuid: UUID): Double {
-        // TODO: Implement heuristic logic
-        return 0.0
+    private fun analyzeYLevelDistribution(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "y-level-analysis"
+        val suspiciousRanges = config.getSuspiciousYRanges()
+        val breaksInSuspiciousZones = ctx.breakActions.filter { action -> suspiciousRanges.any { range -> action.y in range } }
+
+        val totalBreaks = ctx.breakActions.size.toDouble()
+        if (totalBreaks < 1) return Triple(key, 0.0, "[Y-Level Analysis] No break actions found.")
+
+        val concentrationRatio = breaksInSuspiciousZones.size / totalBreaks
+        val concentrationThreshold = config.getYLevelConcentrationRatio()
+        val concentrationScore = if (concentrationRatio > concentrationThreshold) ((concentrationRatio - concentrationThreshold) * 200).coerceIn(0.0, 100.0) else 0.0
+
+        val subContext = ctx.copy(breakActions = breaksInSuspiciousZones, valuableFinds = breaksInSuspiciousZones.filter { it.material in ctx.highValueOres })
+        val (_, zoneOreScore, _) = calculateOreToStoneRatio(subContext)
+
+        val finalScore = (concentrationScore * 0.4) + (zoneOreScore * 0.6)
+        val report = "[Y-Level Analysis | Score: %.1f] %.2f%% of mining at suspicious Y-levels (sub-score: %.1f).".format(finalScore, concentrationRatio * 100, zoneOreScore)
+        return Triple(key, finalScore, report)
+    }
+
+    private fun analyzeTunnelingPatterns(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "tunneling-pattern"
+        if (ctx.valuableFinds.size < 2) {
+            return Triple(key, 0.0, "[Tunneling | Score: 0.0] Not enough valuable ore finds.")
+        }
+
+        var suspiciousTunnels = 0
+        val varianceThreshold = config.getTunnelVarianceThreshold()
+
+        for (find in ctx.valuableFinds) {
+            val precedingPath = getPrecedingPath(find, ctx.breakActions, 50)
+            if (precedingPath.size < 10) continue
+
+            val xVar = calculateVariance(precedingPath.map { it.x.toDouble() })
+            val yVar = calculateVariance(precedingPath.map { it.y.toDouble() })
+            val zVar = calculateVariance(precedingPath.map { it.z.toDouble() })
+
+            if ((xVar < varianceThreshold && zVar < varianceThreshold && yVar > varianceThreshold) ||
+                (yVar < varianceThreshold && (xVar > varianceThreshold || zVar > varianceThreshold))) {
+                suspiciousTunnels++
+            }
+        }
+
+        val score = (suspiciousTunnels.toDouble() / ctx.valuableFinds.size) * 150
+        val report = "[Tunneling | Score: %.1f] Detected %d straight/vertical tunnel(s).".format(score.coerceIn(0.0, 100.0), suspiciousTunnels)
+        return Triple(key, score.coerceIn(0.0, 100.0), report)
+    }
+
+    private fun analyzeMiningPurity(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "mining-purity"
+        if (ctx.valuableFinds.isEmpty()) {
+            return Triple(key, 0.0, "[Mining Purity | Score: 0.0] No high-value ores found.")
+        }
+
+        var suspiciousPaths = 0
+        val commonOres = config.getCommonOres().values.flatten().toSet()
+        val ignorableInteractions = config.getIgnorableInteractions()
+
+        for (find in ctx.valuableFinds) {
+            val precedingPath = getPrecedingPath(find, ctx.breakActions, config.getMiningPurityWindow())
+            if (precedingPath.isEmpty()) continue
+
+            val nonOreBlocks = precedingPath.count { it.material !in commonOres && it.material !in ignorableInteractions }
+            val purityRatio = nonOreBlocks.toDouble() / precedingPath.size
+
+            if (purityRatio >= config.getMiningPuritySuspiciousRatio()) {
+                val interactions = ctx.allActions.any { it.actionType == ActionType.INTERACT && it.timestamp >= precedingPath.first().timestamp && it.timestamp < find.timestamp }
+                if (!interactions) {
+                    suspiciousPaths++
+                }
+            }
+        }
+
+        val score = (suspiciousPaths.toDouble() / ctx.valuableFinds.size) * 100
+        val report = "[Mining Purity | Score: %.1f] Detected %d case(s) of ignoring interactions.".format(score, suspiciousPaths)
+        return Triple(key, score.coerceIn(0.0, 100.0), report)
+    }
+
+    private fun analyzePathEfficiency(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "path-efficiency"
+        if (ctx.valuableFinds.size < 3) {
+            return Triple(key, 0.0, "[Path Efficiency | Score: 0.0] Not enough finds for analysis.")
+        }
+
+        var totalPathDistance = 0.0
+        var totalStraightLineDistance = 0.0
+
+        val valuableFindsSorted = ctx.valuableFinds.sortedBy { it.timestamp }
+
+        for (i in 0 until valuableFindsSorted.size - 1) {
+            val find1 = valuableFindsSorted[i]
+            val find2 = valuableFindsSorted[i+1]
+
+            totalStraightLineDistance += getDistance(find1, find2)
+
+            val pathSegment = ctx.breakActions.filter { it.timestamp > find1.timestamp && it.timestamp <= find2.timestamp }
+            if (pathSegment.size < 2) continue
+            for (j in 0 until pathSegment.size - 1) {
+                totalPathDistance += getDistance(pathSegment[j], pathSegment[j+1])
+            }
+        }
+
+        if (totalStraightLineDistance < 1) return Triple(key, 0.0, "[Path Efficiency | Score: 0.0] Path distance is too short.")
+
+        val efficiencyRatio = if (totalStraightLineDistance > 0) totalPathDistance / totalStraightLineDistance else 1.0
+        val suspiciousRatio = config.getPathEfficiencySuspiciousRatio()
+
+        val score = if (efficiencyRatio < suspiciousRatio) ((1.0 - (efficiencyRatio - 1.0) / (suspiciousRatio - 1.0)) * 100) else 0.0
+        val report = "[Path Efficiency | Score: %.1f] Path efficiency ratio: %.2f".format(score.coerceIn(0.0, 100.0), efficiencyRatio)
+        return Triple(key, score.coerceIn(0.0, 100.0), report)
+    }
+
+    private fun analyzeTorchUsage(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "torch-usage"
+        val yLimit = config.getTorchCheckYLevel()
+        val deepActions = ctx.allActions.filter { it.y < yLimit }
+
+        val breakCount = deepActions.count { it.actionType == ActionType.BLOCK_BREAK }.toDouble()
+        val torchCount = deepActions.count { it.actionType == ActionType.BLOCK_PLACE && (it.material == "TORCH" || it.material == "SOUL_TORCH") }.toDouble()
+
+        if (breakCount < config.getTorchMinBlocks()) {
+            return Triple(key, 0.0, "[Torch Usage | Score: 0.0] Not enough blocks broken below Y=$yLimit.")
+        }
+
+        val ratio = breakCount / (torchCount + 1)
+        val suspiciousRatio = config.getTorchSuspiciousRatio()
+
+        val score = if (ratio > suspiciousRatio) (((ratio / suspiciousRatio) - 1.0) * 100).coerceIn(0.0, 100.0) else 0.0
+        val report = "[Torch Usage | Score: %.1f] Broke %.0f blocks per torch placed below Y=%d.".format(score, ratio, yLimit)
+        return Triple(key, score, report)
+    }
+
+    private fun analyzeTimeAndDistance(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "time-distance"
+        if (ctx.valuableFinds.size < 2) {
+            return Triple(key, 0.0, "[Time/Distance | Score: 0.0] Not enough valuable finds.")
+        }
+
+        var suspiciousFinds = 0
+        val speedThreshold = config.getSuspiciousSpeedThreshold()
+        val valuableFindsSorted = ctx.valuableFinds.sortedBy { it.timestamp }
+
+        for (i in 0 until valuableFindsSorted.size - 1) {
+            val find1 = valuableFindsSorted[i]
+            val find2 = valuableFindsSorted[i + 1]
+            val distance = getDistance(find1, find2)
+            if (distance < 10) continue
+            val timeDiffSeconds = (find2.timestamp - find1.timestamp) / 1000.0
+            if (timeDiffSeconds < 1) continue
+            if ((distance / timeDiffSeconds) > speedThreshold) suspiciousFinds++
+        }
+
+        val score = (suspiciousFinds.toDouble() / ctx.valuableFinds.size) * 100
+        val report = "[Time/Distance | Score: %.1f] Detected %d suspiciously fast travel(s).".format(score.coerceIn(0.0, 100.0), suspiciousFinds)
+        return Triple(key, score.coerceIn(0.0, 100.0), report)
+    }
+
+    private fun analyzeInitialDiscoveryTime(ctx: AnalysisContext): Triple<String, Double, String> {
+        val key = "initial-discovery"
+        val firstZoneEntry = ctx.allActions.find { it.actionType == ActionType.ZONE_ENTRY } ?: return Triple(key, 0.0, "[Initial Discovery | Score: 0.0] Player has not entered a suspicious zone.")
+
+        val firstHighValueFind = ctx.valuableFinds.find { it.timestamp > firstZoneEntry.timestamp } ?: return Triple(key, 0.0, "[Initial Discovery | Score: 0.0] No high-value ores found after entering zone.")
+
+        val timeDiffSeconds = (firstHighValueFind.timestamp - firstZoneEntry.timestamp) / 1000.0
+        val suspiciousTime = config.getInitialDiscoverySuspiciousTime().toDouble()
+
+        val score = if (timeDiffSeconds < suspiciousTime) ((1.0 - (timeDiffSeconds / suspiciousTime)) * 100).coerceIn(0.0, 100.0) else 0.0
+        val report = "[Initial Discovery | Score: %.1f] First high-value ore found in %.1f seconds.".format(score, timeDiffSeconds)
+        return Triple(key, score, report)
+    }
+
+    private fun getPrecedingPath(find: ActionData, breakActions: List<ActionData>, window: Int): List<ActionData> {
+        val findIndex = breakActions.indexOfFirst { it.timestamp == find.timestamp }
+        if (findIndex == -1 || findIndex < window) return emptyList()
+        return breakActions.subList(findIndex - window, findIndex)
+    }
+
+    private fun getDistance(a: ActionData, b: ActionData): Double {
+        return sqrt((a.x - b.x).toDouble().pow(2) + (a.y - b.y).toDouble().pow(2) + (a.z - b.z).toDouble().pow(2))
+    }
+
+    private fun calculateVariance(data: List<Double>): Double {
+        if (data.size < 2) return 0.0
+        val mean = data.average()
+        return data.sumOf { (it - mean).pow(2) } / data.size
     }
 }

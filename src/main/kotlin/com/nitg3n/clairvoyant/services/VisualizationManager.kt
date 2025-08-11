@@ -1,61 +1,68 @@
 package com.nitg3n.clairvoyant.services
 
-import com.nitg3n.clairvoyant.Clairvoyant
-import com.nitg3n.clairvoyant.models.MinedBlockAction
+import com.nitg3n.clairvoyant.models.ActionData
+import com.nitg3n.clairvoyant.models.ActionType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.entity.BlockDisplay
-import org.bukkit.entity.Entity
-import org.bukkit.entity.Interaction
 import org.bukkit.entity.Player
-import org.bukkit.metadata.FixedMetadataValue
-import java.util.UUID
 
-class VisualizationManager(private val plugin: Clairvoyant) {
-    private val activeVisualizations = mutableMapOf<UUID, MutableSet<Entity>>()
-    val TRACE_METADATA_KEY = "ClairvoyantTraceEntity"
+/**
+ * ActionData 객체를 Bukkit의 Location 객체로 변환하는 확장 함수.
+ */
+fun ActionData.toLocation(): Location = Location(Bukkit.getWorld(this.world), this.x.toDouble(), this.y.toDouble(), this.z.toDouble())
 
-    fun showTrace(admin: Player, actions: List<MinedBlockAction>) {
-        clearVisualization(admin)
-        val world = admin.world
-        val entities = mutableSetOf<Entity>()
+/**
+ * 플레이어의 행동을 시각화하는 기능을 관리합니다.
+ * (리팩토링: ChatColor -> Adventure API로 전환)
+ */
+class VisualizationManager(
+    private val databaseManager: DatabaseManager,
+    private val configManager: ConfigManager
+) {
 
-        actions.forEach { action ->
-            val location = Location(world, action.x + 0.5, action.y + 0.5, action.z + 0.5)
-            val material = Material.getMaterial(action.blockMaterial) ?: Material.STONE
-            val blockDisplay = world.spawn(location, BlockDisplay::class.java) {
-                it.block = material.createBlockData()
-                it.isVisibleByDefault = false
+    /**
+     * 특정 플레이어의 채굴 활동을 관리자에게 가상 블록으로 보여줍니다.
+     * @param admin 명령어를 실행한 관리자
+     * @param targetPlayerName 추적할 플레이어의 이름
+     */
+    suspend fun visualizePlayerActions(admin: Player, targetPlayerName: String) {
+        val targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName)
+        if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline) {
+            withContext(Dispatchers.Main) {
+                admin.sendMessage(Component.text("Player '$targetPlayerName' not found.", NamedTextColor.RED))
             }
-            val interaction = world.spawn(location, Interaction::class.java) {
-                it.interactionWidth = 1.0f
-                it.interactionHeight = 1.0f
-                it.isVisibleByDefault = false
-            }
-            val metadataValue = FixedMetadataValue(plugin, action.timestamp)
-            listOf(blockDisplay, interaction).forEach {
-                it.setMetadata(TRACE_METADATA_KEY, metadataValue)
-                admin.showEntity(plugin, it)
-                entities.add(it)
-            }
+            return
         }
-        activeVisualizations[admin.uniqueId] = entities
-        plugin.server.scheduler.runTaskLater(plugin, Runnable {
-            if (activeVisualizations.containsKey(admin.uniqueId)) {
-                clearVisualization(admin)
-                admin.sendMessage(Component.text("Trace visualization has been cleared.", NamedTextColor.GRAY))
+
+        val actions = databaseManager.getPlayerActions(targetPlayer.uniqueId)
+            .filter { it.actionType == ActionType.BLOCK_BREAK }
+
+        if (actions.isEmpty()) {
+            withContext(Dispatchers.Main) {
+                admin.sendMessage(Component.text("No mining data found for ${targetPlayer.name}.", NamedTextColor.YELLOW))
             }
-        }, 20 * 60 * 5)
-    }
+            return
+        }
 
-    fun clearVisualization(admin: Player) {
-        activeVisualizations.remove(admin.uniqueId)?.forEach { if (it.isValid) it.remove() }
-    }
+        val visualMap = configManager.getVisualizationMapping()
+        val defaultMarker = configManager.getDefaultVisualMarker()
 
-    fun clearAllVisualizations() {
-        activeVisualizations.values.forEach { set -> set.forEach { if (it.isValid) it.remove() } }
-        activeVisualizations.clear()
+        withContext(Dispatchers.Main) {
+            actions.forEach { action ->
+                try {
+                    val originalMaterial = Material.valueOf(action.material.uppercase())
+                    val displayMaterial = visualMap[originalMaterial] ?: defaultMarker
+                    admin.sendBlockChange(action.toLocation(), displayMaterial.createBlockData())
+                } catch (_: IllegalArgumentException) {
+                    // 무시: 잘못된 블록 이름이 데이터에 있는 경우
+                }
+            }
+            admin.sendMessage(Component.text("Trace for ${targetPlayer.name} has been visualized. It will disappear when you relog or move far away.", NamedTextColor.GREEN))
+        }
     }
 }
