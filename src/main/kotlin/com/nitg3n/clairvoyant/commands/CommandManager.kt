@@ -1,10 +1,7 @@
 package com.nitg3n.clairvoyant.commands
 
 import com.nitg3n.clairvoyant.Clairvoyant
-import com.nitg3n.clairvoyant.services.DatabaseManager
-import com.nitg3n.clairvoyant.services.HeuristicsEngine
-import com.nitg3n.clairvoyant.services.SuspicionReport
-import com.nitg3n.clairvoyant.services.VisualizationManager
+import com.nitg3n.clairvoyant.services.* // services.* 로 변경하여 ConfigManager 포함
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -27,15 +24,12 @@ class CommandManager(
     private val plugin: Clairvoyant,
     private val visualizationManager: VisualizationManager,
     private val databaseManager: DatabaseManager,
-    private val heuristicsEngine: HeuristicsEngine
+    private val heuristicsEngine: HeuristicsEngine,
+    private val configManager: ConfigManager // 생성자에 configManager 추가
 ) : CommandExecutor, TabCompleter {
 
-    // A dedicated CoroutineScope for handling commands asynchronously.
     private val commandScope = CoroutineScope(Dispatchers.Default)
 
-    /**
-     * Handles command execution.
-     */
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (!sender.hasPermission("clairvoyant.admin")) {
             sender.sendMessage(Component.text("You do not have permission to use this command.", NamedTextColor.RED))
@@ -58,9 +52,6 @@ class CommandManager(
         return true
     }
 
-    /**
-     * Handles the /cv trace <player> command.
-     */
     private fun handleTraceCommand(sender: CommandSender, args: Array<out String>) {
         if (sender !is Player) {
             sender.sendMessage(Component.text("This command can only be run by a player.", NamedTextColor.RED))
@@ -86,9 +77,6 @@ class CommandManager(
         }
     }
 
-    /**
-     * Handles the /cv stats <player> command.
-     */
     private fun handleStatsCommand(sender: CommandSender, args: Array<out String>) {
         if (args.size < 2) {
             sender.sendMessage(Component.text("Usage: /cv stats <player>", NamedTextColor.RED))
@@ -130,9 +118,6 @@ class CommandManager(
         }
     }
 
-    /**
-     * Handles the /cv check <player> command.
-     */
     private fun handleCheckCommand(sender: CommandSender, args: Array<out String>) {
         if (args.size < 2) {
             sender.sendMessage(Component.text("Usage: /cv check <player>", NamedTextColor.RED))
@@ -169,17 +154,23 @@ class CommandManager(
      * Formats and sends the suspicion report to the command sender.
      */
     private fun sendReport(sender: CommandSender, report: SuspicionReport) {
-        val overallScoreColor = when {
-            report.overallScore > 70 -> NamedTextColor.DARK_RED
-            report.overallScore > 40 -> NamedTextColor.RED
-            else -> NamedTextColor.YELLOW
+        val suspiciousThreshold = configManager.getSuspiciousThreshold()
+        val dangerousThreshold = configManager.getDangerousThreshold()
+
+        val (statusText, statusColor) = when {
+            report.overallScore >= dangerousThreshold -> "[DANGEROUS]" to NamedTextColor.DARK_RED
+            report.overallScore >= suspiciousThreshold -> "[SUSPICIOUS]" to NamedTextColor.YELLOW
+            else -> "[NORMAL]" to NamedTextColor.GREEN
         }
 
         sender.sendMessage(
             Component.text()
                 .append(Component.text("--- Heuristics Analysis Report for ${report.playerName} ---\n", NamedTextColor.GOLD))
+                .append(Component.text("Status: ", Style.style(NamedTextColor.WHITE)))
+                .append(Component.text(statusText, statusColor, TextDecoration.BOLD))
+                .append(Component.text("\n", Style.style(NamedTextColor.WHITE)))
                 .append(Component.text("Overall Suspicion Score: ", Style.style(NamedTextColor.WHITE)))
-                .append(Component.text("%.2f".format(report.overallScore), overallScoreColor, TextDecoration.BOLD))
+                .append(Component.text("%.2f".format(report.overallScore), statusColor, TextDecoration.BOLD))
                 .append(Component.text(" / 100.0\n", Style.style(NamedTextColor.WHITE)))
                 .build()
         )

@@ -102,3 +102,11 @@ thresholds:
     suspicious-time-seconds: 300
   path-efficiency:
     suspicious-efficiency-ratio: 1.5
+
+  # Thresholds for suspicion levels.
+  # Defines the score at which a player is flagged as suspicious or dangerous.
+  suspicion-levels:
+    # Score above this value will be marked as [SUSPICIOUS]
+    suspicious: 40.0
+    # Score above this value will be marked as [DANGEROUS]
+    dangerous: 70.0

@@ -28,9 +28,6 @@ class Clairvoyant : JavaPlugin() {
     private lateinit var heuristicsEngine: HeuristicsEngine
     private lateinit var commandManager: CommandManager
 
-    /**
-     * Called when the plugin is enabled.
-     */
     override fun onEnable() {
         instance = this
         logger.info("Clairvoyant is enabling...")
@@ -48,18 +45,14 @@ class Clairvoyant : JavaPlugin() {
         server.pluginManager.registerEvents(PlayerQuitListener(visualizationManager), this)
 
         // Register commands
-        commandManager = CommandManager(this, visualizationManager, databaseManager, heuristicsEngine)
+        commandManager = CommandManager(this, visualizationManager, databaseManager, heuristicsEngine, configManager) // configManager 전달
         getCommand("clairvoyant")?.setExecutor(commandManager)
         getCommand("clairvoyant")?.tabCompleter = commandManager
 
         logger.info("Clairvoyant has been enabled.")
     }
 
-    /**
-     * Called when the plugin is disabled.
-     */
     override fun onDisable() {
-        // Cancel any running coroutine jobs to prevent memory leaks
         commandManager.cancelJobs()
         logger.info("Clairvoyant has been disabled.")
     }

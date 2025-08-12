@@ -44,6 +44,7 @@ class VisualizationManager(
      * @param admin The admin player executing the command.
      * @param targetPlayerName The name of the player to trace.
      */
+    // 'suspend' keyword was duplicated, this is the corrected version.
     suspend fun visualizePlayerActions(admin: Player, targetPlayerName: String) {
         val targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName)
         if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline) {

@@ -68,6 +68,9 @@ class ConfigManager(private val plugin: Clairvoyant) {
     fun getMiningPuritySuspiciousRatio(): Double = config.getDouble("thresholds.mining-purity.suspicious-purity-ratio", 0.95)
     fun getInitialDiscoverySuspiciousTime(): Long = config.getLong("thresholds.initial-discovery.suspicious-time-seconds", 300)
     fun getPathEfficiencySuspiciousRatio(): Double = config.getDouble("thresholds.path-efficiency.suspicious-efficiency-ratio", 1.5)
+    fun getSuspiciousThreshold(): Double = config.getDouble("suspicion-levels.suspicious", 40.0)
+    fun getDangerousThreshold(): Double = config.getDouble("suspicion-levels.dangerous", 70.0)
+
 
     fun getSuspiciousYRanges(): List<IntRange> {
         return config.getStringList("thresholds.suspicious-y-levels").mapNotNull {
