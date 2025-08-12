@@ -17,6 +17,24 @@ The goal of Clairvoyant is not to automatically ban players, but to empower admi
 
 -----
 
+## ❔ Compatibility
+
+This plugin is built on the **Paper API**. It will work on any server software that is a fork of Paper and maintains plugin compatibility.
+
+#### ✅ Supported Server Software:
+
+* **Paper** (Recommended)
+* **Purpur**
+* And other direct forks of Paper.
+
+#### ❌ Unsupported Server Software:
+
+* **Folia**
+* **Velocity, Waterfall, BungeeCord**
+* **Spigot/Bukkit**
+
+-----
+
 ## 🛠️ Commands & Permissions
 
 The main command is `/clairvoyant`, with aliases `/cv` and `/xray`. All commands require the permission `clairvoyant.admin` by default.
