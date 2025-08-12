@@ -32,7 +32,7 @@ The main command is `/clairvoyant`, with aliases `/cv` and `/xray`. All commands
 
 ## ⚙️ Installation
 
-1.  Download the latest `Clairvoyant-vX.X.X.jar` from the releases page.
+1.  Download the latest `clairvoyant-vX.X.X.jar` from the releases page.
 2.  Place the JAR file into your server's `/plugins` directory.
 3.  Start or restart your server.
 4.  The plugin will generate a `Clairvoyant` folder containing the `config.yml` and `clairvoyant.db` files.
