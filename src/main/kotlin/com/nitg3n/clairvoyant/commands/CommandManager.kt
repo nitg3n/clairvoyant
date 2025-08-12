@@ -7,8 +7,8 @@ import com.nitg3n.clairvoyant.services.SuspicionReport
 import com.nitg3n.clairvoyant.services.VisualizationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.Style
@@ -21,8 +21,7 @@ import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
 
 /**
- * 플러그인의 모든 명령어를 관리하고 실행합니다.
- * (리팩토링: ChatColor -> Adventure API로 전환)
+ * Manages and executes all plugin commands.
  */
 class CommandManager(
     private val plugin: Clairvoyant,
@@ -31,10 +30,14 @@ class CommandManager(
     private val heuristicsEngine: HeuristicsEngine
 ) : CommandExecutor, TabCompleter {
 
+    // A dedicated CoroutineScope for handling commands asynchronously.
     private val commandScope = CoroutineScope(Dispatchers.Default)
 
+    /**
+     * Handles command execution.
+     */
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
-        if (!sender.hasPermission("clairvoyant.use")) {
+        if (!sender.hasPermission("clairvoyant.admin")) {
             sender.sendMessage(Component.text("You do not have permission to use this command.", NamedTextColor.RED))
             return true
         }
@@ -55,6 +58,9 @@ class CommandManager(
         return true
     }
 
+    /**
+     * Handles the /cv trace <player> command.
+     */
     private fun handleTraceCommand(sender: CommandSender, args: Array<out String>) {
         if (sender !is Player) {
             sender.sendMessage(Component.text("This command can only be run by a player.", NamedTextColor.RED))
@@ -71,15 +77,18 @@ class CommandManager(
             try {
                 visualizationManager.visualizePlayerActions(sender, targetPlayerName)
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                plugin.server.scheduler.runTask(plugin, Runnable {
                     sender.sendMessage(Component.text("An error occurred while generating the trace.", NamedTextColor.RED))
                     plugin.logger.severe("Error during trace command: ${e.message}")
                     e.printStackTrace()
-                }
+                })
             }
         }
     }
 
+    /**
+     * Handles the /cv stats <player> command.
+     */
     private fun handleStatsCommand(sender: CommandSender, args: Array<out String>) {
         if (args.size < 2) {
             sender.sendMessage(Component.text("Usage: /cv stats <player>", NamedTextColor.RED))
@@ -91,15 +100,16 @@ class CommandManager(
             try {
                 val targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName)
                 if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline) {
-                    withContext(Dispatchers.Main) { sender.sendMessage(Component.text("Player '$targetPlayerName' not found.", NamedTextColor.RED)) }
+                    plugin.server.scheduler.runTask(plugin, Runnable { sender.sendMessage(Component.text("Player '$targetPlayerName' not found.", NamedTextColor.RED)) })
                     return@launch
                 }
 
                 val stats = databaseManager.getPlayerMiningStats(targetPlayer.uniqueId)
-                withContext(Dispatchers.Main) {
+
+                plugin.server.scheduler.runTask(plugin, Runnable {
                     if (stats.isEmpty()) {
                         sender.sendMessage(Component.text("No mining data found for ${targetPlayer.name}.", NamedTextColor.YELLOW))
-                        return@withContext
+                        return@Runnable
                     }
 
                     val builder = Component.text()
@@ -109,17 +119,20 @@ class CommandManager(
                         builder.append(Component.text("$count\n", NamedTextColor.WHITE))
                     }
                     sender.sendMessage(builder.build())
-                }
+                })
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                plugin.server.scheduler.runTask(plugin, Runnable {
                     sender.sendMessage(Component.text("An error occurred while fetching stats.", NamedTextColor.RED))
                     plugin.logger.severe("Error during stats command: ${e.message}")
                     e.printStackTrace()
-                }
+                })
             }
         }
     }
 
+    /**
+     * Handles the /cv check <player> command.
+     */
     private fun handleCheckCommand(sender: CommandSender, args: Array<out String>) {
         if (args.size < 2) {
             sender.sendMessage(Component.text("Usage: /cv check <player>", NamedTextColor.RED))
@@ -131,26 +144,30 @@ class CommandManager(
             try {
                 val targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName)
                 if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline) {
-                    withContext(Dispatchers.Main) { sender.sendMessage(Component.text("Player '$targetPlayerName' not found.", NamedTextColor.RED)) }
+                    plugin.server.scheduler.runTask(plugin, Runnable { sender.sendMessage(Component.text("Player '$targetPlayerName' not found.", NamedTextColor.RED)) })
                     return@launch
                 }
 
-                withContext(Dispatchers.Main) { sender.sendMessage(Component.text("Running heuristics analysis for ${targetPlayer.name}...", NamedTextColor.AQUA)) }
+                plugin.server.scheduler.runTask(plugin, Runnable { sender.sendMessage(Component.text("Running heuristics analysis for ${targetPlayer.name}...", NamedTextColor.AQUA)) })
 
                 val report = heuristicsEngine.analyzePlayer(targetPlayer.uniqueId)
-                withContext(Dispatchers.Main) {
+
+                plugin.server.scheduler.runTask(plugin, Runnable {
                     sendReport(sender, report)
-                }
+                })
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                plugin.server.scheduler.runTask(plugin, Runnable {
                     sender.sendMessage(Component.text("An error occurred during the analysis.", NamedTextColor.RED))
                     plugin.logger.severe("Error during check command: ${e.message}")
                     e.printStackTrace()
-                }
+                })
             }
         }
     }
 
+    /**
+     * Formats and sends the suspicion report to the command sender.
+     */
     private fun sendReport(sender: CommandSender, report: SuspicionReport) {
         val overallScoreColor = when {
             report.overallScore > 70 -> NamedTextColor.DARK_RED
@@ -166,7 +183,7 @@ class CommandManager(
                 .append(Component.text(" / 100.0\n", Style.style(NamedTextColor.WHITE)))
                 .build()
         )
-        sender.sendMessage(Component.empty()) // 줄바꿈
+        sender.sendMessage(Component.empty())
 
         report.reportDetails.forEach { detail ->
             val scoreMatch = """Score: (\d+\.\d)""".toRegex().find(detail)
@@ -194,6 +211,9 @@ class CommandManager(
         }
     }
 
+    /**
+     * Sends the help message to the command sender.
+     */
     private fun sendHelp(sender: CommandSender) {
         sender.sendMessage(
             Component.text()
@@ -210,6 +230,9 @@ class CommandManager(
         )
     }
 
+    /**
+     * Handles tab completion for commands.
+     */
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): MutableList<String> {
         if (args.size == 1) {
             return mutableListOf("trace", "stats", "check", "help").filter { it.startsWith(args[0], ignoreCase = true) }.toMutableList()
@@ -218,5 +241,13 @@ class CommandManager(
             return Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(args[1], ignoreCase = true) }.toMutableList()
         }
         return mutableListOf()
+    }
+
+    /**
+     * Cancels all running coroutines in this scope.
+     * Called when the plugin is disabled.
+     */
+    fun cancelJobs() {
+        commandScope.cancel()
     }
 }

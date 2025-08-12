@@ -1,16 +1,19 @@
+# General plugin information
 name: Clairvoyant
-version: '${version}'
+version: '${project.version}' # Uses the version from build.gradle.kts
 main: com.nitg3n.clairvoyant.Clairvoyant
 api-version: '1.21'
 author: nitg3n
 description: A plugin for detecting X-ray users by logging and visualizing their activities.
 
+# Command definitions
 commands:
   clairvoyant:
     description: Main command for the Clairvoyant plugin.
     permission: clairvoyant.admin
     aliases: [ cv, xray ]
 
+# Permission definitions
 permissions:
   clairvoyant.admin:
     description: Allows usage of all Clairvoyant commands.

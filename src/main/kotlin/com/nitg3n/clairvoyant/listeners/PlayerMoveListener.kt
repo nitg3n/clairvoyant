@@ -10,18 +10,19 @@ import org.bukkit.event.player.PlayerMoveEvent
 import java.util.UUID
 
 /**
- * 플레이어의 이동 이벤트를 감지합니다.
- * LogProcessor 대신 DatabaseManager를 직접 사용하도록 수정되었습니다.
+ * Listens for player movement events.
  */
 class PlayerMoveListener(
     private val databaseManager: DatabaseManager,
     private val config: ConfigManager
 ) : Listener {
 
+    // Tracks players who are currently inside a suspicious Y-level zone.
     private val playersInSuspiciousZone = mutableSetOf<UUID>()
 
     @EventHandler(ignoreCancelled = true)
     fun onPlayerMove(event: PlayerMoveEvent) {
+        // Ignore minor movements within the same block
         if (event.from.blockX == event.to.blockX &&
             event.from.blockY == event.to.blockY &&
             event.from.blockZ == event.to.blockZ
@@ -34,6 +35,7 @@ class PlayerMoveListener(
         val isInZone = config.getSuspiciousYRanges().any { y in it }
         val wasInZone = playersInSuspiciousZone.contains(player.uniqueId)
 
+        // Log an event when a player enters a suspicious Y-level zone
         if (isInZone && !wasInZone) {
             playersInSuspiciousZone.add(player.uniqueId)
             val location = player.location
@@ -49,6 +51,7 @@ class PlayerMoveListener(
             )
             databaseManager.logAction(actionData)
         }
+        // Update state when the player leaves the zone
         else if (!isInZone && wasInZone) {
             playersInSuspiciousZone.remove(player.uniqueId)
         }

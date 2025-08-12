@@ -3,17 +3,27 @@ package com.nitg3n.clairvoyant.models
 import java.util.UUID
 
 /**
- * 플레이어의 행동 유형을 정의하는 Enum 클래스.
+ * Defines the types of player actions that are logged.
  */
 enum class ActionType {
     BLOCK_BREAK,
     BLOCK_PLACE,
-    INTERACT,     // 상자 열기 등 상호작용 이벤트를 위한 유형
+    INTERACT,
     ZONE_ENTRY
 }
 
 /**
- * 플레이어의 단일 행동에 대한 모든 정보를 담는 데이터 클래스.
+ * A data class that encapsulates all information about a single player action.
+ *
+ * @property playerUUID The UUID of the player.
+ * @property playerName The name of the player.
+ * @property actionType The type of the action.
+ * @property material The material associated with the action (e.g., block type).
+ * @property world The name of the world.
+ * @property x The X coordinate.
+ * @property y The Y coordinate.
+ * @property z The Z coordinate.
+ * @property timestamp The time the action occurred, defaults to the current time.
  */
 data class ActionData(
     val playerUUID: UUID,

@@ -5,23 +5,23 @@ import org.bukkit.Material
 import org.bukkit.configuration.file.FileConfiguration
 
 /**
- * config.yml 파일의 설정을 로드하고 관리하는 클래스.
- * (오류 수정: 타입 추론 오류 및 미사용 경고 해결)
+ * Manages loading and accessing settings from the config.yml file.
  */
 class ConfigManager(private val plugin: Clairvoyant) {
 
     private val config: FileConfiguration
 
     init {
+        // Save the default config if it doesn't exist, then load it.
         plugin.saveDefaultConfig()
         plugin.reloadConfig()
         config = plugin.config
     }
 
-    // Weights
+    // --- Getters for various configuration values ---
+
     fun getWeight(key: String): Double = config.getDouble("weights.$key", 0.0)
 
-    // Ore Lists
     fun getHighValueOres(): Set<String> = config.getStringList("ore-lists.high-value").toSet()
     fun getCommonOres(): Map<String, Set<String>> {
         val commonOresSection = config.getConfigurationSection("ore-lists.common") ?: return emptyMap()
@@ -32,7 +32,6 @@ class ConfigManager(private val plugin: Clairvoyant) {
     fun getStoneTypes(): Set<String> = config.getStringList("ore-lists.stones").toSet()
     fun getIgnorableInteractions(): Set<String> = config.getStringList("ore-lists.ignorable-interactions").toSet()
 
-    // Visualization Mapping
     fun getVisualizationMapping(): Map<Material, Material> {
         val mappingSection = config.getConfigurationSection("visualization-mapping.ores") ?: return emptyMap()
         return mappingSection.getKeys(false).mapNotNull { original ->
@@ -55,7 +54,6 @@ class ConfigManager(private val plugin: Clairvoyant) {
         }
     }
 
-    // Thresholds
     fun getMinStoneForAnalysis(): Int = config.getInt("thresholds.min-blocks-for-analysis.stone", 100)
     fun getMinTotalForAnalysis(): Int = config.getInt("thresholds.min-blocks-for-analysis.total", 500)
     fun getHighValueRatioThreshold(): Double = config.getDouble("thresholds.high-value-ratio", 0.02)

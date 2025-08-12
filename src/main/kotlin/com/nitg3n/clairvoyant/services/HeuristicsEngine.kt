@@ -8,7 +8,7 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * HeuristicsEngine의 분석 결과를 담는 데이터 클래스.
+ * Data class to hold the results of a heuristics analysis.
  */
 data class SuspicionReport(
     val playerName: String,
@@ -18,14 +18,16 @@ data class SuspicionReport(
 )
 
 /**
- * 플레이어 행동 데이터를 분석하여 X-ray 사용 의심도를 평가하는 휴리스틱 엔진.
- * (오류 수정: 연산자 오류 및 로직 수정)
+ * The heuristics engine analyzes player behavior data to assess the likelihood of X-ray usage.
  */
 class HeuristicsEngine(
     private val databaseManager: DatabaseManager,
     private val config: ConfigManager
 ) {
 
+    /**
+     * A helper class to hold the context for a single analysis run, avoiding redundant data fetching.
+     */
     private data class AnalysisContext(
         val allActions: List<ActionData>,
         val breakActions: List<ActionData>,
@@ -33,6 +35,11 @@ class HeuristicsEngine(
         val highValueOres: Set<String>
     )
 
+    /**
+     * Analyzes a player's data and generates a suspicion report.
+     * @param playerUUID The UUID of the player to analyze.
+     * @return A SuspicionReport object.
+     */
     fun analyzePlayer(playerUUID: UUID): SuspicionReport {
         val allActions = databaseManager.getPlayerActions(playerUUID)
         val playerName = Bukkit.getOfflinePlayer(playerUUID).name ?: "Unknown"
@@ -62,18 +69,18 @@ class HeuristicsEngine(
 
         val reports = heuristics.map { it(context) }
 
-        // 오류 수정을 위해 associate 대신 forEach와 mutableMap을 사용하는 명시적인 방식으로 변경
         val weightedScores = mutableMapOf<String, Double>()
         reports.forEach { (key, score, _) ->
             weightedScores[key] = score * config.getWeight(key)
         }
 
         val overallScore = weightedScores.values.sum()
-
         val reportDetails = reports.map { it.third }
 
         return SuspicionReport(playerName, playerUUID, overallScore.coerceIn(0.0, 100.0), reportDetails)
     }
+
+    // --- Heuristic Functions ---
 
     private fun calculateOreToStoneRatio(ctx: AnalysisContext): Triple<String, Double, String> {
         val key = "high-value-ore-ratio"
@@ -157,8 +164,10 @@ class HeuristicsEngine(
             val yVar = calculateVariance(precedingPath.map { it.y.toDouble() })
             val zVar = calculateVariance(precedingPath.map { it.z.toDouble() })
 
-            if ((xVar < varianceThreshold && zVar < varianceThreshold && yVar > varianceThreshold) ||
-                (yVar < varianceThreshold && (xVar > varianceThreshold || zVar > varianceThreshold))) {
+            // Detect straight line or vertical/horizontal tunnel patterns
+            if ((xVar < varianceThreshold && zVar < varianceThreshold) || // Vertical
+                (xVar < varianceThreshold && yVar < varianceThreshold) || // Z-axis straight line
+                (yVar < varianceThreshold && zVar < varianceThreshold)) { // X-axis straight line
                 suspiciousTunnels++
             }
         }
@@ -291,8 +300,10 @@ class HeuristicsEngine(
         return Triple(key, score, report)
     }
 
+    // --- Helper Functions ---
+
     private fun getPrecedingPath(find: ActionData, breakActions: List<ActionData>, window: Int): List<ActionData> {
-        val findIndex = breakActions.indexOfFirst { it.timestamp == find.timestamp }
+        val findIndex = breakActions.indexOfFirst { it.timestamp == find.timestamp && it.x == find.x && it.y == find.y && it.z == find.z }
         if (findIndex == -1 || findIndex < window) return emptyList()
         return breakActions.subList(findIndex - window, findIndex)
     }

@@ -1,9 +1,8 @@
 # Clairvoyant Configuration File
-# ---------------------------------
-# 이 파일에서 플러그인의 모든 분석 기준과 가중치를 조정할 수 있습니다.
-# 서버 특성에 맞게 값을 변경하여 탐지 정확도를 최적화하세요.
+# This file allows you to adjust all analysis criteria and weights.
+# Optimize detection accuracy by changing values to suit your server's characteristics.
 
-# 각 휴리스틱 분석에 적용될 가중치입니다. 총 합이 1.0이 되도록 조정하는 것을 권장합니다.
+# Weights applied to each heuristic analysis. Recommended to adjust so the total sum is 1.0.
 weights:
   high-value-ore-ratio: 0.15
   anomalous-mining: 0.10
@@ -15,7 +14,8 @@ weights:
   time-distance: 0.05
   initial-discovery: 0.05
 
-# 휴리스틱 분석에 사용될 광물 및 블록 목록입니다.
+# Lists of minerals and blocks used in heuristic analysis.
+# You can add custom items from mods here using their namespaced IDs (e.g., "mod_id:item_id").
 ore-lists:
   high-value:
     - "DIAMOND_ORE"
@@ -47,9 +47,9 @@ ore-lists:
     - "SPAWNER"
     - "BOOKSHELF"
 
-# /cv trace 명령어 시각화 매핑
-# 파괴된 블록(왼쪽)을 어떤 블록(오른쪽)으로 보여줄지 설정합니다.
-# 여기에 없는 블록은 default-marker에 설정된 블록으로 표시됩니다.
+# /cv trace command visualization mapping.
+# Sets which block (right) to display for a broken block (left).
+# Blocks not listed here will be displayed as the block set in default-marker.
 visualization-mapping:
   default-marker: "OAK_FENCE"
   ores:
@@ -72,7 +72,7 @@ visualization-mapping:
     COPPER_ORE: "COPPER_BLOCK"
     DEEPSLATE_COPPER_ORE: "COPPER_BLOCK"
 
-# 각 휴리스틱의 민감도를 조정하는 설정입니다.
+# Settings to adjust the sensitivity of each heuristic.
 thresholds:
   min-blocks-for-analysis:
     stone: 100

@@ -10,8 +10,7 @@ import java.io.File
 import java.util.*
 
 /**
- * 데이터베이스 연결 및 쿼리를 관리합니다.
- * (오류 수정: Deprecated된 Exposed API를 최신 버전으로 수정)
+ * Manages database connections and queries.
  */
 class DatabaseManager(private val plugin: Clairvoyant) {
 
@@ -22,6 +21,9 @@ class DatabaseManager(private val plugin: Clairvoyant) {
         initializeSchema()
     }
 
+    /**
+     * Establishes a connection to the SQLite database.
+     */
     private fun connect() {
         val dbFile = File(plugin.dataFolder, "clairvoyant.db")
         if (!dbFile.exists()) {
@@ -30,6 +32,9 @@ class DatabaseManager(private val plugin: Clairvoyant) {
         db = Database.connect("jdbc:sqlite:${dbFile.path}", "org.sqlite.JDBC")
     }
 
+    /**
+     * Creates the database tables if they do not already exist.
+     */
     private fun initializeSchema() {
         transaction(db) {
             SchemaUtils.create(PlayerActions)
@@ -37,7 +42,8 @@ class DatabaseManager(private val plugin: Clairvoyant) {
     }
 
     /**
-     * 플레이어의 행동 데이터를 데이터베이스에 저장합니다.
+     * Logs a player action to the database.
+     * @param actionData The action data to log.
      */
     fun logAction(actionData: ActionData) {
         transaction(db) {
@@ -56,11 +62,12 @@ class DatabaseManager(private val plugin: Clairvoyant) {
     }
 
     /**
-     * 특정 플레이어의 모든 행동 로그를 가져옵니다.
+     * Retrieves all action logs for a specific player.
+     * @param playerUUID The UUID of the player.
+     * @return A list of ActionData objects.
      */
     fun getPlayerActions(playerUUID: UUID): List<ActionData> {
         return transaction(db) {
-            // Deprecated 수정: `selectAll().where { ... }` 를 사용하여 최신 API로 변경
             PlayerActions.selectAll().where { PlayerActions.playerUUID eq playerUUID.toString() }
                 .orderBy(PlayerActions.timestamp)
                 .map { row ->
@@ -80,13 +87,15 @@ class DatabaseManager(private val plugin: Clairvoyant) {
     }
 
     /**
-     * 특정 플레이어의 광물 채굴 통계를 가져옵니다.
+     * Retrieves mining statistics for a specific player.
+     * @param playerUUID The UUID of the player.
+     * @return A map of material names to the count of blocks broken.
      */
     fun getPlayerMiningStats(playerUUID: UUID): Map<String, Int> {
         return transaction(db) {
             val materialCol = PlayerActions.material
             val countCol = materialCol.count()
-            // Deprecated 수정: `slice` 대신 `select`에 직접 컬럼을 지정하고, `where`를 사용하는 최신 API로 변경
+
             PlayerActions
                 .select(materialCol, countCol)
                 .where {
