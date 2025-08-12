@@ -11,7 +11,7 @@ commands:
   clairvoyant:
     description: Main command for the Clairvoyant plugin.
     permission: clairvoyant.admin
-    aliases: [ cv, xray ]
+    aliases: [ cv ]
 
 # Permission definitions
 permissions:
