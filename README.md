@@ -37,7 +37,7 @@ This plugin is built on the **Paper API**. It will work on any server software t
 
 ## 🛠️ Commands & Permissions
 
-The main command is `/clairvoyant`, with aliases `/cv` and `/xray`. All commands require the permission `clairvoyant.admin` by default.
+The main command is `/clairvoyant`, with alias `/cv`. All commands require the permission `clairvoyant.admin` by default.
 
 | Command | Arguments | Description |
 | :--- | :--- | :--- |
