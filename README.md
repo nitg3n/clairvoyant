@@ -1,4 +1,4 @@
-[Logo](https://github.com/nitg3n/clairvoyant/blob/master/clairvoaynt_logo.png?raw=true)
+![Logo](https://github.com/nitg3n/clairvoyant/blob/master/clairvoaynt_logo.png?raw=true)
 
 # 👀 Clairvoyant Anti-X-ray
 
