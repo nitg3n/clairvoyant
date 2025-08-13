@@ -1,3 +1,5 @@
+!![Logo](https://github.com/nitg3n/clairvoyant/blob/master/clairvoaynt_logo.png?raw=true)
+
 # 👀 Clairvoyant Anti-X-ray
 
 **Clairvoyant** is a powerful, modern anti-x-ray plugin designed for PaperMC servers. It moves beyond simple ore obfuscation and instead focuses on **intelligent data analysis** to identify suspicious player behavior. By meticulously logging every mining action and analyzing patterns, Clairvoyant provides server administrators with the clear, evidence-based insights needed to catch cheaters and maintain a fair gameplay environment.
