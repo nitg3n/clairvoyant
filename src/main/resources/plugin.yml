@@ -5,6 +5,7 @@ main: com.nitg3n.clairvoyant.Clairvoyant
 api-version: '1.21'
 author: nitg3n
 description: A plugin for detecting X-ray users by logging and visualizing their activities.
+website: https://modrinth.com/plugin/clairvoyant
 
 # Command definitions
 commands:

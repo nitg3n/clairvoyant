@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.nitg3n"
-version = "v1.0.1"
+version = "v1.0.2"
 
 repositories {
     mavenCentral()
