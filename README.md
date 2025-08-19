@@ -121,12 +121,6 @@ This section sets the threshold level and punishment command for the auto-punish
 
 <!-- end list -->
 
-```yaml
-suspicion-levels:
-  suspicious: 40.0
-  dangerous: 70.0
-```
-
 ## ⬇️ Download
 
 * ### [Modrinth](https://modrinth.com/plugin/clairvoyant)
