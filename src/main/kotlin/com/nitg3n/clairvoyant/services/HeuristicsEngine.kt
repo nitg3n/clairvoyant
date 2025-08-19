@@ -1,5 +1,6 @@
 package com.nitg3n.clairvoyant.services
 
+import com.nitg3n.clairvoyant.Clairvoyant
 import com.nitg3n.clairvoyant.models.ActionData
 import com.nitg3n.clairvoyant.models.ActionType
 import org.bukkit.Bukkit
@@ -8,7 +9,7 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * Data class to hold the results of a heuristics analysis.
+ * Data class to hold the results of heuristic analysis.
  */
 data class SuspicionReport(
     val playerName: String,
@@ -18,15 +19,16 @@ data class SuspicionReport(
 )
 
 /**
- * The heuristics engine analyzes player behavior data to assess the likelihood of X-ray usage.
+ * HeuristicsEngine analyzes player behavior data to assess the likelihood of X-ray usage.
  */
 class HeuristicsEngine(
+    private val plugin: Clairvoyant,
     private val databaseManager: DatabaseManager,
     private val config: ConfigManager
 ) {
 
     /**
-     * A helper class to hold the context for a single analysis run, avoiding redundant data fetching.
+     * Helper class that holds the context for a single analysis run to avoid redundant data lookups.
      */
     private data class AnalysisContext(
         val allActions: List<ActionData>,
@@ -37,6 +39,42 @@ class HeuristicsEngine(
 
     /**
      * Analyzes a player's data and generates a suspicion report.
+     * If the score exceeds the threshold, it automatically punishes the player.
+     * @param playerUUID The UUID of the player to analyze.
+     */
+    fun analyzeAndAct(playerUUID: UUID) {
+        val report = analyzePlayer(playerUUID)
+
+        // Check auto-punish conditions
+        if (config.autoPunishEnabled && report.overallScore >= config.autoPunishThresholdScore) {
+            punishPlayer(playerUUID, report.overallScore)
+        }
+    }
+
+    /**
+     * Punishes a player using the configured command.
+     * @param playerUUID The UUID of the player to punish.
+     * @param score The player's score at the time of punishment.
+     */
+    private fun punishPlayer(playerUUID: UUID, score: Double) {
+        val player = Bukkit.getOfflinePlayer(playerUUID)
+        // Replace the %player% placeholder with the actual player name
+        val command = config.autoPunishCommand.replace("%player%", player.name ?: "Unknown", ignoreCase = true)
+        plugin.logger.info("Auto-punishing player ${player.name} (score: $score). Executing command: '$command'")
+
+        // Execute the command on the server's main thread
+        Bukkit.getScheduler().runTask(plugin, Runnable {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command)
+        })
+
+        // Reset score and data to prevent repeated punishment
+        // Note: To fully implement this, a method like clearPlayerActions in DatabaseManager would be needed.
+        // databaseManager.clearPlayerActions(playerUUID)
+        plugin.logger.info("Action data for player ${player.name} should be cleared to prevent re-punishment.")
+    }
+
+    /**
+     * Analyzes a player's data and generates a suspicion report. (Internal logic)
      * @param playerUUID The UUID of the player to analyze.
      * @return A SuspicionReport object.
      */

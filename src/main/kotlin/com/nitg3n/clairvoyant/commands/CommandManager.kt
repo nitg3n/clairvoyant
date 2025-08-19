@@ -1,7 +1,7 @@
 package com.nitg3n.clairvoyant.commands
 
 import com.nitg3n.clairvoyant.Clairvoyant
-import com.nitg3n.clairvoyant.services.* // services.* 로 변경하여 ConfigManager 포함
+import com.nitg3n.clairvoyant.services.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -25,17 +25,12 @@ class CommandManager(
     private val visualizationManager: VisualizationManager,
     private val databaseManager: DatabaseManager,
     private val heuristicsEngine: HeuristicsEngine,
-    private val configManager: ConfigManager // 생성자에 configManager 추가
+    private val configManager: ConfigManager
 ) : CommandExecutor, TabCompleter {
 
     private val commandScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
-        if (!sender.hasPermission("clairvoyant.admin")) {
-            sender.sendMessage(Component.text("You do not have permission to use this command.", NamedTextColor.RED))
-            return true
-        }
-
         if (args.isEmpty()) {
             sendHelp(sender)
             return true
@@ -45,6 +40,7 @@ class CommandManager(
             "trace" -> handleTraceCommand(sender, args)
             "stats" -> handleStatsCommand(sender, args)
             "check" -> handleCheckCommand(sender, args)
+            "autopunish" -> handleAutoPunishCommand(sender, args) // Handle auto-punish command
             "help" -> sendHelp(sender)
             else -> sender.sendMessage(Component.text("Unknown subcommand. Use /cv help for a list of commands.", NamedTextColor.RED))
         }
@@ -52,7 +48,32 @@ class CommandManager(
         return true
     }
 
+    private fun handleAutoPunishCommand(sender: CommandSender, args: Array<out String>) {
+        if (!sender.hasPermission("clairvoyant.autopunish")) {
+            sender.sendMessage(Component.text("You do not have permission to use this command.", NamedTextColor.RED))
+            return
+        }
+        if (args.size != 2 || (args[1].lowercase() != "on" && args[1].lowercase() != "off")) {
+            sender.sendMessage(Component.text("Usage: /cv autopunish <on|off>", NamedTextColor.RED))
+            return
+        }
+
+        val enabled = args[1].lowercase() == "on"
+        configManager.setAutoPunish(enabled)
+
+        if (enabled) {
+            sender.sendMessage(Component.text("Auto-punish has been enabled.", NamedTextColor.GREEN))
+        } else {
+            sender.sendMessage(Component.text("Auto-punish has been disabled.", NamedTextColor.YELLOW))
+        }
+    }
+
+
     private fun handleTraceCommand(sender: CommandSender, args: Array<out String>) {
+        if (!sender.hasPermission("clairvoyant.trace")) {
+            sender.sendMessage(Component.text("You do not have permission to use this command.", NamedTextColor.RED))
+            return
+        }
         if (sender !is Player) {
             sender.sendMessage(Component.text("This command can only be run by a player.", NamedTextColor.RED))
             return
@@ -78,6 +99,10 @@ class CommandManager(
     }
 
     private fun handleStatsCommand(sender: CommandSender, args: Array<out String>) {
+        if (!sender.hasPermission("clairvoyant.stats")) {
+            sender.sendMessage(Component.text("You do not have permission to use this command.", NamedTextColor.RED))
+            return
+        }
         if (args.size < 2) {
             sender.sendMessage(Component.text("Usage: /cv stats <player>", NamedTextColor.RED))
             return
@@ -119,6 +144,10 @@ class CommandManager(
     }
 
     private fun handleCheckCommand(sender: CommandSender, args: Array<out String>) {
+        if (!sender.hasPermission("clairvoyant.check")) {
+            sender.sendMessage(Component.text("You do not have permission to use this command.", NamedTextColor.RED))
+            return
+        }
         if (args.size < 2) {
             sender.sendMessage(Component.text("Usage: /cv check <player>", NamedTextColor.RED))
             return
@@ -215,6 +244,8 @@ class CommandManager(
                 .append(Component.text(" - Show mining statistics for a player.\n", NamedTextColor.WHITE))
                 .append(Component.text("/cv check <player>", NamedTextColor.AQUA))
                 .append(Component.text(" - Analyze a player for suspicious activity.\n", NamedTextColor.WHITE))
+                .append(Component.text("/cv autopunish <on|off>", NamedTextColor.AQUA))
+                .append(Component.text(" - Toggles the auto-punish feature.\n", NamedTextColor.WHITE))
                 .append(Component.text("/cv help", NamedTextColor.AQUA))
                 .append(Component.text(" - Shows this help message.", NamedTextColor.WHITE))
                 .build()
@@ -226,10 +257,17 @@ class CommandManager(
      */
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): MutableList<String> {
         if (args.size == 1) {
-            return mutableListOf("trace", "stats", "check", "help").filter { it.startsWith(args[0], ignoreCase = true) }.toMutableList()
+            return mutableListOf("trace", "stats", "check", "autopunish", "help").filter { it.startsWith(args[0], ignoreCase = true) }.toMutableList()
         }
-        if (args.size == 2 && listOf("trace", "stats", "check").contains(args[0].lowercase())) {
-            return Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(args[1], ignoreCase = true) }.toMutableList()
+        if (args.size == 2) {
+            when (args[0].lowercase()) {
+                "trace", "stats", "check" -> {
+                    return Bukkit.getOnlinePlayers().map { it.name }.filter { it.startsWith(args[1], ignoreCase = true) }.toMutableList()
+                }
+                "autopunish" -> {
+                    return mutableListOf("on", "off").filter { it.startsWith(args[1], ignoreCase = true) }.toMutableList()
+                }
+            }
         }
         return mutableListOf()
     }
