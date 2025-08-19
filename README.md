@@ -41,12 +41,13 @@ This plugin is built on the **Paper API**. It will work on any server software t
 
 The main command is `/clairvoyant`, with alias `/cv`. All commands require the permission `clairvoyant.admin` by default.
 
-| Command | Arguments | Description |
-| :--- | :--- | :--- |
-| `/cv stats` | `<player>` | Shows detailed mining statistics for the specified player, including counts for each block type broken. |
-| `/cv trace` | `<player>` | Generates an interactive, in-game visualization of the player's recent mining activity. Only you can see the markers. |
-| `/cv check`| `<player>` | Runs a full heuristic analysis on the player and displays a detailed suspicion report with an overall score and status. |
-| `/cv help` | | Displays the list of available commands. |
+| Command | Arguments   | Description                                                                                                             |
+| :--- |:------------|:------------------------------------------------------------------------------------------------------------------------|
+| `/cv stats` | `<player>`  | Shows detailed mining statistics for the specified player, including counts for each block type broken.                 |
+| `/cv trace` | `<player>`  | Generates an interactive, in-game visualization of the player's recent mining activity. Only you can see the markers.   |
+| `/cv check`| `<player>`  | Runs a full heuristic analysis on the player and displays a detailed suspicion report with an overall score and status. |
+| `/cv help` |             | Displays the list of available commands.                                                                                |
+|`/cv autopunish`| `<on\|off>` | Toggles the auto-punish feature                                                                                         |
 
 -----
 
@@ -109,6 +110,14 @@ This section sets the score boundaries for the status levels displayed in the `/
 
 * `suspicious`: Any score above this value will be flagged as **[SUSPICIOUS]**.
 * `dangerous`: Any score above this value will be flagged as **[DANGEROUS]**.
+
+### `auto-punish`
+
+This section sets the threshold level and punishment command for the auto-punish feature.
+
+* `enabled`: Turns the auto-punish feature on and off.
+* `threshold-level`: Sets the threshold level for the auto-punish feature.
+* `command`: Sets the command to execute when the critical level is reached.
 
 <!-- end list -->
 

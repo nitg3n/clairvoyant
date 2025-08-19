@@ -1,20 +1,17 @@
-# General plugin information
 name: Clairvoyant
-version: '${project.version}' # Uses the version from build.gradle.kts
+version: '${project.version}'
 main: com.nitg3n.clairvoyant.Clairvoyant
 api-version: '1.21'
 author: nitg3n
 description: A plugin for detecting X-ray users by logging and visualizing their activities.
 website: https://modrinth.com/plugin/clairvoyant
 
-# Command definitions
 commands:
   clairvoyant:
     description: Main command for the Clairvoyant plugin.
     permission: clairvoyant.admin
     aliases: [ cv ]
 
-# Permission definitions
 permissions:
   clairvoyant.admin:
     description: Allows usage of all Clairvoyant commands.
@@ -27,4 +24,7 @@ permissions:
     default: op
   clairvoyant.check:
     description: Allows checking a player's suspicion level.
+    default: op
+  clairvoyant.autopunish:
+    description: Allows toggling the auto-punish feature.
     default: op

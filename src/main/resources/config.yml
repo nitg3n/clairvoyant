@@ -110,3 +110,12 @@ thresholds:
     suspicious: 40.0
     # Score above this value will be marked as [DANGEROUS]
     dangerous: 70.0
+
+# Settings for automatically punishing players who exceed a certain suspicion level.
+auto-punish:
+  # Set to true to enable automatic punishment.
+  enabled: true
+  # The suspicion level that triggers the punishment ('suspicious' or 'dangerous').
+  threshold-level: "dangerous"
+  # The command to execute when a player is punished. %player% is a placeholder.
+  command: "kick %player% [Clairvoyant] Suspicious activity detected."

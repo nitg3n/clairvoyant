@@ -62,6 +62,21 @@ class DatabaseManager(private val plugin: Clairvoyant) {
     }
 
     /**
+     * Retrieves the total number of actions for a specific player.
+     * @param playerUUID The UUID of the player.
+     * @return The total action count.
+     */
+    fun getActionCount(playerUUID: UUID): Long {
+        return transaction(db) {
+            PlayerActions
+                .select(PlayerActions.id.count())
+                .where { PlayerActions.playerUUID eq playerUUID.toString() }
+                .first()[PlayerActions.id.count()]
+        }
+    }
+
+
+    /**
      * Retrieves all action logs for a specific player.
      * @param playerUUID The UUID of the player.
      * @return A list of ActionData objects.

@@ -35,17 +35,17 @@ class Clairvoyant : JavaPlugin() {
         // Initialize services
         configManager = ConfigManager(this)
         databaseManager = DatabaseManager(this)
-        heuristicsEngine = HeuristicsEngine(databaseManager, configManager)
+        heuristicsEngine = HeuristicsEngine(this, databaseManager, configManager)
         visualizationManager = VisualizationManager(this, databaseManager, configManager)
 
         // Register event listeners
-        server.pluginManager.registerEvents(BlockBreakListener(databaseManager), this)
+        server.pluginManager.registerEvents(BlockBreakListener(databaseManager, heuristicsEngine, configManager), this)
         server.pluginManager.registerEvents(InteractionListener(databaseManager, visualizationManager), this)
         server.pluginManager.registerEvents(PlayerMoveListener(databaseManager, configManager), this)
         server.pluginManager.registerEvents(PlayerQuitListener(visualizationManager), this)
 
         // Register commands
-        commandManager = CommandManager(this, visualizationManager, databaseManager, heuristicsEngine, configManager) // configManager 전달
+        commandManager = CommandManager(this, visualizationManager, databaseManager, heuristicsEngine, configManager)
         getCommand("clairvoyant")?.setExecutor(commandManager)
         getCommand("clairvoyant")?.tabCompleter = commandManager
 
